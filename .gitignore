@@ -4,6 +4,16 @@
 cmake-build-debug/
 
 
+# visual studio #
+#################
+Release/
+Debug/
+.vs/
+
+# visual studio code #
+######################
+.vscode/
+
 # compiled source #
 ###################
 *.com
@@ -14,7 +24,7 @@ cmake-build-debug/
 *.so
 lib*.a
 *.pyc
-__pycache__
+__pycache__/
 
 # Packages #
 ############
@@ -23,11 +33,13 @@ __pycache__
 *.7z
 *.dmg
 *.gz
+*.tgz
 *.iso
 *.jar
 *.rar
 *.tar
 *.zip
+*.zipx
 
 # Logs and databases #
 ######################
@@ -46,5 +58,6 @@ Icon?
 ehthumbs.db
 Thumbs.db
 
-target
-.vscode
+# rust #
+########
+target/
