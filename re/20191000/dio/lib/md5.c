@@ -2,7 +2,7 @@
 #include <string.h>
 
 
-/*md5×ª»»ÓÃµ½µÄ³£Á¿£¬Ëã·¨±¾Éí¹æ¶¨µÄ*/
+/*md5è½¬æ¢ç”¨åˆ°çš„å¸¸é‡ï¼Œç®—æ³•æœ¬èº«è§„å®šçš„*/
 #define S11 7
 #define S12 12
 #define S13 17
@@ -21,22 +21,24 @@
 #define S44 21
 
 static void MD5Transform(uint32_t[4], uint8_t[64]);
-static void Encode(uint8_t*, uint32_t*, size_t);
-static void Decode(uint32_t*, uint8_t*, size_t);
+
+static void Encode(uint8_t *, const uint32_t *, size_t);
+
+static void Decode(uint32_t *, const uint8_t *, size_t);
 
 /*
-ÓÃÓÚbitsÌî³äµÄ»º³åÇø£¬ÎªÊ²Ã´Òª64¸ö×Ö½ÚÄØ£¿ÒòÎªµ±Óû¼ÓÃÜµÄĞÅÏ¢µÄbitsÊı±»512³ıÆäÓàÊıÎª448Ê±£¬
-ĞèÒªÌî³äµÄbitsµÄ×î´óÖµÎª512=64*8 ¡£
+ç”¨äºbitså¡«å……çš„ç¼“å†²åŒºï¼Œä¸ºä»€ä¹ˆè¦64ä¸ªå­—èŠ‚å‘¢ï¼Ÿå› ä¸ºå½“æ¬²åŠ å¯†çš„ä¿¡æ¯çš„bitsæ•°è¢«512é™¤å…¶ä½™æ•°ä¸º448æ—¶ï¼Œ
+éœ€è¦å¡«å……çš„bitsçš„æœ€å¤§å€¼ä¸º512=64*8 ã€‚
 */
 static uint8_t PADDING[64] = {
-    0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 /*
-½ÓÏÂÀ´µÄÕâ¼¸¸öºê¶¨ÒåÊÇmd5Ëã·¨¹æ¶¨µÄ£¬¾ÍÊÇ¶ÔĞÅÏ¢½øĞĞmd5¼ÓÃÜ¶¼Òª×öµÄÔËËã¡£
-¾İËµÓĞ¾­ÑéµÄ¸ßÊÖ¸ú×Ù³ÌĞòÊ±¸ù¾İÕâ¼¸¸öÌØÊâµÄ²Ù×÷¾Í¿ÉÒÔ¶Ï¶¨ÊÇ²»ÊÇÓÃµÄmd5
+æ¥ä¸‹æ¥çš„è¿™å‡ ä¸ªå®å®šä¹‰æ˜¯md5ç®—æ³•è§„å®šçš„ï¼Œå°±æ˜¯å¯¹ä¿¡æ¯è¿›è¡Œmd5åŠ å¯†éƒ½è¦åšçš„è¿ç®—ã€‚
+æ®è¯´æœ‰ç»éªŒçš„é«˜æ‰‹è·Ÿè¸ªç¨‹åºæ—¶æ ¹æ®è¿™å‡ ä¸ªç‰¹æ®Šçš„æ“ä½œå°±å¯ä»¥æ–­å®šæ˜¯ä¸æ˜¯ç”¨çš„md5
 */
 /* F, G, H and I are basic MD5 functions.
  */
@@ -45,27 +47,26 @@ static uint8_t PADDING[64] = {
 #define H(x, y, z) ((x) ^ (y) ^ (z))
 #define I(x, y, z) ((y) ^ ((x) | (~z)))
 
- /* ROTATE_LEFT rotates x left n bits.
-  */
+/* ROTATE_LEFT rotates x left n bits.
+ */
 #define ROTATE_LEFT(x, n) (((x) << (n)) | ((x) >> (32-(n))))
 
-  /* FF, GG, HH, and II transformations for rounds 1, 2, 3, and 4.
-    Rotation is separate from addition to prevent recomputation.
-   */
+/* FF, GG, HH, and II transformations for rounds 1, 2, 3, and 4.
+  Rotation is separate from addition to prevent recomputation.
+ */
 #define FF(a, b, c, d, x, s, ac) {  (a) += F ((b), (c), (d)) + (x) + (uint32_t)(ac);  (a) = ROTATE_LEFT ((a), (s));  (a) += (b); }
 #define GG(a, b, c, d, x, s, ac) {  (a) += G ((b), (c), (d)) + (x) + (uint32_t)(ac);  (a) = ROTATE_LEFT ((a), (s));  (a) += (b); }
 #define HH(a, b, c, d, x, s, ac) {  (a) += H ((b), (c), (d)) + (x) + (uint32_t)(ac);  (a) = ROTATE_LEFT ((a), (s));  (a) += (b); }
 #define II(a, b, c, d, x, s, ac) {  (a) += I ((b), (c), (d)) + (x) + (uint32_t)(ac);  (a) = ROTATE_LEFT ((a), (s));  (a) += (b); }
 
-   /* MD5 initialization. Begins an MD5 operation, writing a new context. */
-   /*³õÊ¼»¯md5µÄ½á¹¹*/
-void MD5Init(MD5_CTX* context)
-{
-    /*½«µ±Ç°µÄÓĞĞ§ĞÅÏ¢µÄ³¤¶ÈÉè³É0,Õâ¸öºÜ¼òµ¥,»¹Ã»ÓĞÓĞĞ§ĞÅÏ¢,³¤¶Èµ±È»ÊÇ0ÁË*/
+/* MD5 initialization. Begins an MD5 operation, writing a new context. */
+/*åˆå§‹åŒ–md5çš„ç»“æ„*/
+void MD5Init(MD5_CTX *context) {
+    /*å°†å½“å‰çš„æœ‰æ•ˆä¿¡æ¯çš„é•¿åº¦è®¾æˆ0,è¿™ä¸ªå¾ˆç®€å•,è¿˜æ²¡æœ‰æœ‰æ•ˆä¿¡æ¯,é•¿åº¦å½“ç„¶æ˜¯0äº†*/
     context->count[0] = context->count[1] = 0;
 
     /* Load magic initialization constants.*/
-    /*³õÊ¼»¯Á´½Ó±äÁ¿£¬Ëã·¨ÒªÇóÕâÑù£¬Õâ¸öÃ»·¨½âÊÍÁË*/
+    /*åˆå§‹åŒ–é“¾æ¥å˜é‡ï¼Œç®—æ³•è¦æ±‚è¿™æ ·ï¼Œè¿™ä¸ªæ²¡æ³•è§£é‡Šäº†*/
     context->state[0] = 0x67452301;
     context->state[1] = 0xefcdab89;
     context->state[2] = 0x98badcfe;
@@ -75,99 +76,95 @@ void MD5Init(MD5_CTX* context)
 /* MD5 block update operation. Continues an MD5 message-digest
   operation, processing another message block, and updating the
   context. */
-  /*½«Óë¼ÓÃÜµÄĞÅÏ¢´«µİ¸ømd5½á¹¹£¬¿ÉÒÔ¶à´Îµ÷ÓÃ
-  context£º³õÊ¼»¯¹ıÁËµÄmd5½á¹¹
-  input£ºÓû¼ÓÃÜµÄĞÅÏ¢£¬¿ÉÒÔÈÎÒâ³¤
-  inputLen£ºÖ¸¶¨inputµÄ³¤¶È
-  */
-void MD5Update(MD5_CTX* context, uint8_t* input, size_t inputLen)
-{
+/*å°†ä¸åŠ å¯†çš„ä¿¡æ¯ä¼ é€’ç»™md5ç»“æ„ï¼Œå¯ä»¥å¤šæ¬¡è°ƒç”¨
+contextï¼šåˆå§‹åŒ–è¿‡äº†çš„md5ç»“æ„
+inputï¼šæ¬²åŠ å¯†çš„ä¿¡æ¯ï¼Œå¯ä»¥ä»»æ„é•¿
+inputLenï¼šæŒ‡å®šinputçš„é•¿åº¦
+*/
+void MD5Update(MD5_CTX *context, const uint8_t *input, size_t inputLen) {
     size_t i, index, partLen;
 
     /* Compute number of bytes mod 64 */
-    /*¼ÆËãÒÑÓĞĞÅÏ¢µÄbits³¤¶ÈµÄ×Ö½ÚÊıµÄÄ£64, 64bytes=512bits¡£
-    ÓÃÓÚÅĞ¶ÏÒÑÓĞĞÅÏ¢¼ÓÉÏµ±Ç°´«¹ıÀ´µÄĞÅÏ¢µÄ×Ü³¤¶ÈÄÜ²»ÄÜ´ïµ½512bits£¬
-    Èç¹ûÄÜ¹»´ïµ½Ôò¶Ô´Õ¹»µÄ512bits½øĞĞÒ»´Î´¦Àí*/
-    index = (unsigned int)((context->count[0] >> 3) & 0x3F);
+    /*è®¡ç®—å·²æœ‰ä¿¡æ¯çš„bitsé•¿åº¦çš„å­—èŠ‚æ•°çš„æ¨¡64, 64bytes=512bitsã€‚
+    ç”¨äºåˆ¤æ–­å·²æœ‰ä¿¡æ¯åŠ ä¸Šå½“å‰ä¼ è¿‡æ¥çš„ä¿¡æ¯çš„æ€»é•¿åº¦èƒ½ä¸èƒ½è¾¾åˆ°512bitsï¼Œ
+    å¦‚æœèƒ½å¤Ÿè¾¾åˆ°åˆ™å¯¹å‡‘å¤Ÿçš„512bitsè¿›è¡Œä¸€æ¬¡å¤„ç†*/
+    index = (unsigned int) ((context->count[0] >> 3) & 0x3F);
 
-    /* Update number of bits *//*¸üĞÂÒÑÓĞĞÅÏ¢µÄbits³¤¶È*/
-    if ((context->count[0] += ((uint32_t)inputLen << 3)) < ((uint32_t)inputLen << 3))
+    /* Update number of bits *//*æ›´æ–°å·²æœ‰ä¿¡æ¯çš„bitsé•¿åº¦*/
+    if ((context->count[0] += ((uint32_t) inputLen << 3)) < ((uint32_t) inputLen << 3))
         context->count[1]++;
-    context->count[1] += ((uint32_t)inputLen >> 29);
+    context->count[1] += ((uint32_t) inputLen >> 29);
 
-    /*¼ÆËãÒÑÓĞµÄ×Ö½ÚÊı³¤¶È»¹²î¶àÉÙ×Ö½Ú¿ÉÒÔ ´Õ³É64µÄÕû±¶Êı*/
+    /*è®¡ç®—å·²æœ‰çš„å­—èŠ‚æ•°é•¿åº¦è¿˜å·®å¤šå°‘å­—èŠ‚å¯ä»¥ å‡‘æˆ64çš„æ•´å€æ•°*/
     partLen = 64 - index;
 
     /* Transform as many times as possible.
     */
-    /*Èç¹ûµ±Ç°ÊäÈëµÄ×Ö½ÚÊı ´óÓÚ ÒÑÓĞ×Ö½ÚÊı³¤¶È²¹×ã64×Ö½ÚÕû±¶ÊıËù²îµÄ×Ö½ÚÊı*/
+    /*å¦‚æœå½“å‰è¾“å…¥çš„å­—èŠ‚æ•° å¤§äº å·²æœ‰å­—èŠ‚æ•°é•¿åº¦è¡¥è¶³64å­—èŠ‚æ•´å€æ•°æ‰€å·®çš„å­—èŠ‚æ•°*/
     if (inputLen >= partLen) {
-        /*ÓÃµ±Ç°ÊäÈëµÄÄÚÈİ°Ñcontext->bufferµÄÄÚÈİ²¹×ã512bits*/
-        R_memcpy((uint8_t*)&context->buffer[index], (uint8_t*)input, partLen);
-        /*ÓÃ»ù±¾º¯Êı¶ÔÌî³äÂúµÄ512bits£¨ÒÑ¾­±£´æµ½context->bufferÖĞ£© ×öÒ»´Î×ª»»£¬×ª»»½á¹û±£´æµ½context->stateÖĞ*/
+        /*ç”¨å½“å‰è¾“å…¥çš„å†…å®¹æŠŠcontext->bufferçš„å†…å®¹è¡¥è¶³512bits*/
+        R_memcpy((uint8_t *) &context->buffer[index], (uint8_t *) input, partLen);
+        /*ç”¨åŸºæœ¬å‡½æ•°å¯¹å¡«å……æ»¡çš„512bitsï¼ˆå·²ç»ä¿å­˜åˆ°context->bufferä¸­ï¼‰ åšä¸€æ¬¡è½¬æ¢ï¼Œè½¬æ¢ç»“æœä¿å­˜åˆ°context->stateä¸­*/
         MD5Transform(context->state, context->buffer);
 
         /*
-        ¶Ôµ±Ç°ÊäÈëµÄÊ£Óà×Ö½Ú×ö×ª»»£¨Èç¹ûÊ£ÓàµÄ×Ö½Ú<ÔÚÊäÈëµÄinput»º³åÇøÖĞ>´óÓÚ512bitsµÄ»° £©£¬
-        ×ª»»½á¹û±£´æµ½context->stateÖĞ
+        å¯¹å½“å‰è¾“å…¥çš„å‰©ä½™å­—èŠ‚åšè½¬æ¢ï¼ˆå¦‚æœå‰©ä½™çš„å­—èŠ‚<åœ¨è¾“å…¥çš„inputç¼“å†²åŒºä¸­>å¤§äº512bitsçš„è¯ ï¼‰ï¼Œ
+        è½¬æ¢ç»“æœä¿å­˜åˆ°context->stateä¸­
         */
-        for (i = partLen; i + 63 < inputLen; i += 64)/*°Ñi+63<inputlen¸ÄÎªi+64<=inputlen¸üÈİÒ×Àí½â*/
+        for (i = partLen; i + 63 < inputLen; i += 64)/*æŠŠi+63<inputlenæ”¹ä¸ºi+64<=inputlenæ›´å®¹æ˜“ç†è§£*/
             MD5Transform(context->state, &input[i]);
 
         index = 0;
-    }
-    else
+    } else
         i = 0;
 
     /* Buffer remaining input */
-    /*½«ÊäÈë»º³åÇøÖĞµÄ²»×ãÌî³äÂú512bitsµÄÊ£ÓàÄÚÈİÌî³äµ½context->bufferÖĞ£¬Áô´ıÒÔºóÔÙ×÷´¦Àí*/
-    R_memcpy((uint8_t*)&context->buffer[index], (uint8_t*)&input[i], inputLen - i);
+    /*å°†è¾“å…¥ç¼“å†²åŒºä¸­çš„ä¸è¶³å¡«å……æ»¡512bitsçš„å‰©ä½™å†…å®¹å¡«å……åˆ°context->bufferä¸­ï¼Œç•™å¾…ä»¥åå†ä½œå¤„ç†*/
+    R_memcpy((uint8_t *) &context->buffer[index], (uint8_t *) &input[i], inputLen - i);
 }
 
 /* MD5 finalization. Ends an MD5 message-digest operation, writing the
   the message digest and zeroizing the context. */
-  /*»ñÈ¡¼ÓÃÜ µÄ×îÖÕ½á¹û
-  digest£º±£´æ×îÖÕµÄ¼ÓÃÜ´®
-  context£ºÄãÇ°Ãæ³õÊ¼»¯²¢ÌîÈëÁËĞÅÏ¢µÄmd5½á¹¹
-  */
-void MD5Final(MD5_CTX* context, uint8_t digest[16])
-{
+/*è·å–åŠ å¯† çš„æœ€ç»ˆç»“æœ
+digestï¼šä¿å­˜æœ€ç»ˆçš„åŠ å¯†ä¸²
+contextï¼šä½ å‰é¢åˆå§‹åŒ–å¹¶å¡«å…¥äº†ä¿¡æ¯çš„md5ç»“æ„
+*/
+void MD5Final(MD5_CTX *context, uint8_t digest[16]) {
     unsigned char bits[8];
     unsigned int index, padLen;
 
     /* Save number of bits */
-    /*½«Òª±»×ª»»µÄĞÅÏ¢(ËùÓĞµÄ)µÄbits³¤¶È¿½±´µ½bitsÖĞ*/
+    /*å°†è¦è¢«è½¬æ¢çš„ä¿¡æ¯(æ‰€æœ‰çš„)çš„bitsé•¿åº¦æ‹·è´åˆ°bitsä¸­*/
     Encode(bits, context->count, 8);
 
     /* Pad out to 56 mod 64. */
-    /* ¼ÆËãËùÓĞµÄbits³¤¶ÈµÄ×Ö½ÚÊıµÄÄ£64, 64bytes=512bits*/
-    index = (unsigned int)((context->count[0] >> 3) & 0x3f);
-    /*¼ÆËãĞèÒªÌî³äµÄ×Ö½ÚÊı£¬padLenµÄÈ¡Öµ·¶Î§ÔÚ1-64Ö®¼ä*/
+    /* è®¡ç®—æ‰€æœ‰çš„bitsé•¿åº¦çš„å­—èŠ‚æ•°çš„æ¨¡64, 64bytes=512bits*/
+    index = (unsigned int) ((context->count[0] >> 3) & 0x3f);
+    /*è®¡ç®—éœ€è¦å¡«å……çš„å­—èŠ‚æ•°ï¼ŒpadLençš„å–å€¼èŒƒå›´åœ¨1-64ä¹‹é—´*/
     padLen = (index < 56) ? (56 - index) : (120 - index);
-    /*ÕâÒ»´Îº¯Êıµ÷ÓÃ¾ø¶Ô²»»áÔÙµ¼ÖÂMD5TransformµÄ±»µ÷ÓÃ£¬ÒòÎªÕâÒ»´Î²»»áÌîÂú512bits*/
+    /*è¿™ä¸€æ¬¡å‡½æ•°è°ƒç”¨ç»å¯¹ä¸ä¼šå†å¯¼è‡´MD5Transformçš„è¢«è°ƒç”¨ï¼Œå› ä¸ºè¿™ä¸€æ¬¡ä¸ä¼šå¡«æ»¡512bits*/
     MD5Update(context, PADDING, padLen);
 
     /* Append length (before padding) */
-    /*²¹ÉÏÔ­Ê¼ĞÅÏ¢µÄbits³¤¶È£¨bits³¤¶È¹Ì¶¨µÄÓÃ64bits±íÊ¾£©£¬ÕâÒ»´ÎÄÜ¹»Ç¡ÇÉ´Õ¹»512bits£¬²»»á¶àÒ²²»»áÉÙ*/
+    /*è¡¥ä¸ŠåŸå§‹ä¿¡æ¯çš„bitsé•¿åº¦ï¼ˆbitsé•¿åº¦å›ºå®šçš„ç”¨64bitsè¡¨ç¤ºï¼‰ï¼Œè¿™ä¸€æ¬¡èƒ½å¤Ÿæ°å·§å‡‘å¤Ÿ512bitsï¼Œä¸ä¼šå¤šä¹Ÿä¸ä¼šå°‘*/
     MD5Update(context, bits, 8);
 
     /* Store state in digest */
-    /*½«×îÖÕµÄ½á¹û±£´æµ½digestÖĞ¡£ok£¬ÖÕÓÚ´ó¹¦¸æ³ÉÁË*/
+    /*å°†æœ€ç»ˆçš„ç»“æœä¿å­˜åˆ°digestä¸­ã€‚okï¼Œç»ˆäºå¤§åŠŸå‘Šæˆäº†*/
     Encode(digest, context->state, 16);
 
     /* Zeroize sensitive information. */
 
-    R_memset((uint8_t*)context, 0, sizeof(*context));
+    R_memset((uint8_t *) context, 0, sizeof(*context));
 }
 
 /* MD5 basic transformation. Transforms state based on block. */
 /*
-¶Ô512bitsĞÅÏ¢(¼´block»º³åÇø)½øĞĞÒ»´Î´¦Àí£¬Ã¿´Î´¦Àí°üÀ¨ËÄÂÖ
-state[4]£ºmd5½á¹¹ÖĞµÄstate[4]£¬ÓÃÓÚ±£´æ¶Ô512bitsĞÅÏ¢¼ÓÃÜµÄÖĞ¼ä½á¹û»òÕß×îÖÕ½á¹û
-block[64]£ºÓû¼ÓÃÜµÄ512bitsĞÅÏ¢
+å¯¹512bitsä¿¡æ¯(å³blockç¼“å†²åŒº)è¿›è¡Œä¸€æ¬¡å¤„ç†ï¼Œæ¯æ¬¡å¤„ç†åŒ…æ‹¬å››è½®
+state[4]ï¼šmd5ç»“æ„ä¸­çš„state[4]ï¼Œç”¨äºä¿å­˜å¯¹512bitsä¿¡æ¯åŠ å¯†çš„ä¸­é—´ç»“æœæˆ–è€…æœ€ç»ˆç»“æœ
+block[64]ï¼šæ¬²åŠ å¯†çš„512bitsä¿¡æ¯
 */
-static void MD5Transform(uint32_t state[4], uint8_t block[64])
-{
+static void MD5Transform(uint32_t state[4], uint8_t block[64]) {
     uint32_t a = state[0], b = state[1], c = state[2], d = state[3], x[16];
 
     Decode(x, block, 64);
@@ -250,47 +247,45 @@ static void MD5Transform(uint32_t state[4], uint8_t block[64])
     state[3] += d;
 
     /* Zeroize sensitive information. */
-    R_memset((uint8_t*)x, 0, sizeof(x));
+    R_memset((uint8_t *) x, 0, sizeof(x));
 }
 
 /* Encodes input (UINT4) into output (unsigned char). Assumes len is
   a multiple of 4. */
-  /*½«4×Ö½ÚµÄÕûÊıcopyµ½×Ö·ûĞÎÊ½µÄ»º³åÇøÖĞ
-  output£ºÓÃÓÚÊä³öµÄ×Ö·û»º³åÇø
-  input£ºÓû×ª»»µÄËÄ×Ö½ÚµÄÕûÊıĞÎÊ½µÄÊı×é
-  len£ºoutput»º³åÇøµÄ³¤¶È£¬ÒªÇóÊÇ4µÄÕûÊı±¶
-  */
-static void Encode(uint8_t* output, uint32_t* input, size_t len)
-{
+/*å°†4å­—èŠ‚çš„æ•´æ•°copyåˆ°å­—ç¬¦å½¢å¼çš„ç¼“å†²åŒºä¸­
+outputï¼šç”¨äºè¾“å‡ºçš„å­—ç¬¦ç¼“å†²åŒº
+inputï¼šæ¬²è½¬æ¢çš„å››å­—èŠ‚çš„æ•´æ•°å½¢å¼çš„æ•°ç»„
+lenï¼šoutputç¼“å†²åŒºçš„é•¿åº¦ï¼Œè¦æ±‚æ˜¯4çš„æ•´æ•°å€
+*/
+static void Encode(uint8_t *output, const uint32_t *input, size_t len) {
     unsigned int i, j;
 
     for (i = 0, j = 0; j < len; i++, j += 4) {
-        output[j] = (unsigned char)(input[i] & 0xff);
-        output[j + 1] = (unsigned char)((input[i] >> 8) & 0xff);
-        output[j + 2] = (unsigned char)((input[i] >> 16) & 0xff);
-        output[j + 3] = (unsigned char)((input[i] >> 24) & 0xff);
+        output[j] = (unsigned char) (input[i] & 0xff);
+        output[j + 1] = (unsigned char) ((input[i] >> 8u) & 0xff);
+        output[j + 2] = (unsigned char) ((input[i] >> 16u) & 0xff);
+        output[j + 3] = (unsigned char) ((input[i] >> 24u) & 0xff);
     }
 }
 
 /* Decodes input (unsigned char) into output (UINT4). Assumes len is
   a multiple of 4. */
-  /*ÓëÉÏÃæµÄº¯ÊıÕıºÃÏà·´£¬ÕâÒ»¸ö°Ñ×Ö·ûĞÎÊ½µÄ»º³åÇøÖĞµÄÊı¾İcopyµ½4×Ö½ÚµÄÕûÊıÖĞ£¨¼´ÒÔÕûÊıĞÎÊ½±£´æ£©
-  output£º±£´æ×ª»»³öµÄÕûÊı
-  input£ºÓû×ª»»µÄ×Ö·û»º³åÇø
-  len£ºÊäÈëµÄ×Ö·û»º³åÇøµÄ³¤¶È£¬ÒªÇóÊÇ4µÄÕûÊı±¶
-  */
-static void Decode(uint32_t* output, uint8_t* input, size_t len)
-{
+/*ä¸ä¸Šé¢çš„å‡½æ•°æ­£å¥½ç›¸åï¼Œè¿™ä¸€ä¸ªæŠŠå­—ç¬¦å½¢å¼çš„ç¼“å†²åŒºä¸­çš„æ•°æ®copyåˆ°4å­—èŠ‚çš„æ•´æ•°ä¸­ï¼ˆå³ä»¥æ•´æ•°å½¢å¼ä¿å­˜ï¼‰
+outputï¼šä¿å­˜è½¬æ¢å‡ºçš„æ•´æ•°
+inputï¼šæ¬²è½¬æ¢çš„å­—ç¬¦ç¼“å†²åŒº
+lenï¼šè¾“å…¥çš„å­—ç¬¦ç¼“å†²åŒºçš„é•¿åº¦ï¼Œè¦æ±‚æ˜¯4çš„æ•´æ•°å€
+*/
+static void Decode(uint32_t *output, const uint8_t *input, size_t len) {
     unsigned int i, j;
 
     for (i = 0, j = 0; j < len; i++, j += 4)
-        output[i] = ((uint32_t)input[j]) | (((uint32_t)input[j + 1]) << 8) |
-        (((uint32_t)input[j + 2]) << 16) | (((uint32_t)input[j + 3]) << 24);
+        output[i] = ((uint32_t) input[j]) | (((uint32_t) input[j + 1]) << 8u) |
+                    (((uint32_t) input[j + 2]) << 16u) | (((uint32_t) input[j + 3]) << 24u);
 }
 
-void md5(const BufferBlock* data, uint8_t out_buffer[16]) {
+void md5(const uint8_t *data, size_t size, uint8_t out_buffer[16]) {
     MD5_CTX ctx;
     MD5Init(&ctx);
-    MD5Update(&ctx, data->p_data, data->len);
+    MD5Update(&ctx, data, size);
     MD5Final(&ctx, out_buffer);
 }

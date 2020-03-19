@@ -10,8 +10,9 @@ const msg = "Please try again!\n"
 const promote = "Please input flag: "
 const congratulation = "Congratulations!\n"
 
-// flag{I_be1ieve_PHP_is_the_best_1anguage_forever!}
-// CGO_ENABLED=0 GOOS=windows GOARCH=386 go build --ldflags "-s -w" re1.go
+/// flag{I_be1ieve_PHP_is_the_best_1anguage_forever!}
+/// It's recommended to link the folder into ${GOPATH}
+/// CGO_ENABLED=0 GOOS=windows GOARCH=386 go build --ldflags "-s -w" re1.go
 func main() {
 	fmt.Print(promote)
 	var input string

@@ -1,41 +1,48 @@
-#/usr/bin/python3
+# /usr/bin/python3
 # -*- coding: utf8 -*-
 
 """
 
 """
 
-from typing import List, Union, Tuple, AnyStr, Optional
-from pathlib import Path
+import hashlib
 import os
 import sys
-import struct
-import binascii
-import base64
-import hashlib
+from typing import Optional
 
 PREFIX = b"I_am_the_prefix->|"
 SUFFIX = b"|<-I_am_the_suffix"
 FLAG = b"sgctf{ef6207dce207f190e2b3475658c058e3}"
 KEY = b"This_is_an_very_imp0rt@nt_key!"
 
+
 def usage():
     print("""python attach.py <execname>""")
 
+
 def enc() -> bytes:
-    xorkey: bytes = os.urandom(16)
-    print(f"xorkey = {repr(xorkey)}")
-    enflag: bytearray = bytearray([b ^ xorkey[i % len(xorkey)] for i, b in enumerate(FLAG)])
-    print(f"enflag = {repr(enflag)}")
-    xorkey_enflag: bytes = xorkey + enflag
-    print(f"xorkey_enflag = {repr(xorkey_enflag)}")
-    md5:bytes = hashlib.md5(xorkey_enflag).digest()
+    # 随机生成密钥
+    xor_key: bytes = os.urandom(16)
+    print(f"xor_key = {repr(xor_key)}")
+    # XOR异或
+    en_flag: bytearray = bytearray([b ^ xor_key[i % len(xor_key)] for i, b in enumerate(FLAG)])
+    print(f"en_flag = {repr(en_flag)}")
+    # 将密钥与密文拼接
+    # | xor_key | en_flag |
+    xor_key__en_flag: bytes = xor_key + en_flag
+    print(f"xor_key_en_flag = {repr(xor_key__en_flag)}")
+    # MD5摘要
+    md5: bytes = hashlib.md5(xor_key__en_flag).digest()
     print(f"md5 = {repr(md5)}")
-    md5_xorkey_enflag: bytes = md5 + xorkey_enflag
-    print(f"md5_xorkey_enflag = {repr(md5_xorkey_enflag)}")
-    en_md5_xorkey_enflag: bytes = PREFIX + bytearray([b ^ KEY[i % len(KEY)] for i, b in enumerate(md5_xorkey_enflag)]) + SUFFIX
-    print(f"en_md5_xorkey_enflag = {repr(en_md5_xorkey_enflag)}")
-    return en_md5_xorkey_enflag
+    # | md5 | xor_key | en_flag |
+    md5__xor_key__en_flag: bytes = md5 + xor_key__en_flag
+    print(f"md5__xor_key__en_flag = {repr(md5__xor_key__en_flag)}")
+    # 再用预置密钥XOR一遍
+    en__md5__xor_key__en_flag: bytes = PREFIX + bytearray(
+        [b ^ KEY[i % len(KEY)] for i, b in enumerate(md5__xor_key__en_flag)]) + SUFFIX
+    print(f"en__md5__xor_key__en_flag = {repr(en__md5__xor_key__en_flag)}")
+    return en__md5__xor_key__en_flag
+
 
 def dec(endata: bytes) -> Optional[bytes]:
     if not (endata.startswith(PREFIX) and endata.endswith(SUFFIX)):
@@ -71,12 +78,12 @@ def main():
     else:
         with_flag = False
     if not with_flag:
-        with_flag = input(f"attach flag with file '{sys.argv[1]}'(Y/n)?").lower()[0] == "y" 
+        with_flag = input(f"attach flag with file '{sys.argv[1]}'(Y/n)?").lower()[0] == "y"
         if with_flag:
             attach_data: bytes = enc()
             data: bytes = fc + attach_data
             open(sys.argv[1] + "-flag", "wb").write(data)
-    
+
 
 if __name__ == "__main__":
     main()
