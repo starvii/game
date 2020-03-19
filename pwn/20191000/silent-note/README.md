@@ -7,7 +7,7 @@ UAF利用与延迟绑定机制利用
 ## 编译方法
 
 ```
-gcc silent-note.c -o silent-note -O0 -fstack-protector-all -z noexecstack -fPIE -no-pie -s
+gcc silent-note.c -o silent-note -O0 -fstack-protector-all -z noexecstack -fPIE -no-pie -s -z norelro
 ```
 
 说明：
@@ -17,6 +17,7 @@ gcc silent-note.c -o silent-note -O0 -fstack-protector-all -z noexecstack -fPIE 
 + `-fPIE -no-pie`关闭内存随机化
 + `-O0`关闭代码优化
 + `-s`删除调试符号
++ `-z norelro`关闭RELRO保护，使关键字段可以改写
 
 ## exp
 

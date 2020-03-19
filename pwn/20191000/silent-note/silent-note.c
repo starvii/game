@@ -1,4 +1,4 @@
-// gcc silent-note.c -o silent-note -O0 -fstack-protector-all -z noexecstack -fPIE -no-pie -s
+// gcc silent-note.c -o silent-note -O0 -fstack-protector-all -z noexecstack -fPIE -no-pie -s -z norelro
 #include<stdio.h>
 #include<unistd.h>
 #include<string.h>
@@ -53,7 +53,9 @@ void initialize() {
     setvbuf(stderr, NULL, _IONBF, 0);
     notes_size = 0;
     memset(notes, 0, 8 * SIZE);
-    mprotect((void*)0x601000, 0x1000, PROT_READ | PROT_WRITE);
+    // mprotect((void*)0x601000, 0x1000, PROT_READ | PROT_WRITE);
+    // 关闭relro保护后，上面一句已经不需要了。
+    // 如果为了提示选手，可以加上。
     alarm(60);
 }
 
