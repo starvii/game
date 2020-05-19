@@ -197,3 +197,5 @@ target/
 # gdb #
 #######
 .gdb_history
+peda-session-pwn.txt
+core
