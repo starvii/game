@@ -3,7 +3,10 @@
 
 """
 vim 2 <= %1$p
-cat 2
+rm 2 free
+cat 2 format
+
+思路：
 """
 
 import sys
@@ -25,17 +28,17 @@ class Config:
             self.remote = (remote_host, remote_port)
         else:
             self.remote = None
-        if libc_ver is None:
-            if context.arch.lower() == "amd64":
-                self.ld = "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
-                self.libc = "/lib/x86_64-linux-gnu/libc.so.6"
-            elif context.arch.lower() == "i386":
-                self.ld = "/lib/i386-linux-gnu/ld-linux.so.2"
-                self.libc = "/lib/i386-linux-gnu/libc.so.6"
-            else:
-                self.ld = None
-                self.libc = None
-        else:
+        if libc_ver is not None:
+            # if context.arch.lower() == "amd64":
+            #     self.ld = "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+            #     self.libc = "/lib/x86_64-linux-gnu/libc.so.6"
+            # elif context.arch.lower() == "i386":
+            #     self.ld = "/lib/i386-linux-gnu/ld-linux.so.2"
+            #     self.libc = "/lib/i386-linux-gnu/libc.so.6"
+            # else:
+            #     self.ld = None
+            #     self.libc = None
+        # else:
             assert libc_ver in {"2.19", "2.23", "2.24", "2.27", "2.28", "2.29", "2.30", "2.31"}
             assert context.arch.lower() in {"amd64", "i386"}
             arch = 64 if context.arch.lower() == "amd64" else 32
@@ -45,7 +48,7 @@ class Config:
         self.remote_libc = self.libc if remote_libc is None else remote_libc
 
 
-cfg = Config("./pwn", "59.110.243.101", 54621, "2.23")
+cfg = Config("./pwn@2.23", "59.110.243.101", 25413)
 elf = ELF(cfg.elf)
 
 if len(sys.argv) > 1:
