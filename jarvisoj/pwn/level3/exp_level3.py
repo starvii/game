@@ -30,7 +30,7 @@ class Config:
             self.port: int = port
 
 
-cfg = Config("./level3", "pwn2.jarvisoj.com", 9879)
+cfg = Config("./level3_patched", "pwn2.jarvisoj.com", 9879)
 elf = ELF(cfg.elf)
 libc = elf.libc
 
