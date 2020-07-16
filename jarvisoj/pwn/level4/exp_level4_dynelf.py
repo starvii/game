@@ -4,6 +4,8 @@
 
 """
 @author: starvii
+Warning it is worked on python2, but not python3
+Some bug may be submitted
 """
 
 import sys
