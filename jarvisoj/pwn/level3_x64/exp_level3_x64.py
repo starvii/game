@@ -12,6 +12,7 @@ patchelf --replace-needed libc.so.6 /glibc/2.23/64/lib/libc.so.6 <binary>
 
 """
 
+import re
 import sys
 from os import path
 from pwn import *
@@ -21,7 +22,7 @@ from pwnlib.ui import pause
 context(arch="amd64", os="linux", log_level="debug")
 
 elf_name = path.join(path.dirname(path.abspath(__file__)), "level3_x64_patched")
-_, host, port = "nc pwn2.jarvisoj.com 9883".split(" ")
+_, host, port = re.split("\s+", "nc pwn2.jarvisoj.com 9883")
 
 elf = ELF(elf_name)
 libc = elf.libc
