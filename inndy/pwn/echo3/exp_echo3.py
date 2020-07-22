@@ -208,5 +208,3 @@ if __name__ == "__main__":
     main()
 
 # FLAG{How did you solve this? Double pointer or a long output?}
-# cat exp-echo3.py
-# cat run.sh
