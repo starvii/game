@@ -9,9 +9,10 @@ struct pt
 };
 struct cola
 {
-	pt kele[10];
+	struct pt kele[10];
 };
-cola *tk;
+
+struct cola *tk;
 void init()
 {
 	setvbuf(stdout,0LL,2,0LL);
@@ -121,7 +122,7 @@ void puts_1()
 int main(void)
 {
 	init();
-	tk= (cola*) calloc(0xa0,1);
+	tk= (struct cola*) calloc(0xa0,1);
 	if(tk==NULL)
 	{
 		puts("init error!");
