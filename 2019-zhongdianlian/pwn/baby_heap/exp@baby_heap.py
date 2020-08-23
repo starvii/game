@@ -19,7 +19,7 @@ from pwn import *
 from pwnlib import gdb
 
 
-context(arch="amd64", os="linux")
+context(arch="amd64", os="linux", terminal=['tmux', 'splitw', '-h'])
 
 elf_name = path.join(path.dirname(path.abspath(__file__)), "baby_heap_patched")
 _, host, port = re.split("\s+", "nc 127.0.0.1 4444")
